@@ -1,0 +1,152 @@
+---
+title: "Preprocessing"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r installling packages}
+# Paper screening using metagear
+
+#Install Metagear & dependencies ####
+  #Before installing metagear, make sure you have the most up to date R. 
+  # More info on Marc LaJeunesse's website. http://lajeunesse.myweb.usf.edu/metagear/metagear_basic_vignette.html#introduction
+
+# Install Bioconductor, which helps load GUI dependencies
+source("https://bioconductor.org/biocLite.R") 
+biocLite("EBImage") 
+  # depending on your version of R, you might need to use a more updated version of Bioconductor called BioManager:
+  # install.packages("BiocManager")
+  library(BiocManager)
+
+# If you are having problems, :
+# install RGtk & rattle packages to help GUI for metagear (requires working GTK+)
+install.packages("RGtk2", depen=T)
+  # alternative: install.packages("RGtk2", depen=T, type="source")
+  library(RGtk2)
+
+install.packages("rattle")
+library(rattle) # 
+
+# If the above steps don't work for rattle and RGtk, try this:
+  # Installing Rattle and RGtk2 on MacOS 10.11 (or above)
+  # from https://zhiyzuo.github.io/installation-rattle/#comment-3944233914
+system('brew install gtk+')
+
+local({
+  if (Sys.info()[['sysname']] != 'Darwin') return()
+  
+  .Platform$pkgType = 'mac.binary.el-capitan'
+  unlockBinding('.Platform', baseenv())
+  assign('.Platform', .Platform, 'package:base')
+  lockBinding('.Platform', baseenv())
+  
+  options(
+    pkgType = 'both', install.packages.compile.from.source = 'always',
+    repos = 'https://macos.rbind.org'
+  )
+})
+
+install.packages(c('RGtk2', 'cairoDevice', 'rattle'))
+##
+
+
+# If the steps above work, install Metagear ##
+install.packages("metagear")
+```
+
+
+The WoS file should be named `savedrec.csv` with the default column names. The output of this chunk are 4 files named effort_[ReviewerName].csv
+
+
+```{r reviewer split for screening}
+
+#re-start R, then load metagear
+library(metagear)
+
+# From the vignette:  The first loading of metagear using library(metagear) will trigger the download of
+# the gWidgets package and associated toolkits needed to build GUI interfaces. A small window will also 
+# prompt you to download GTK+ asking "Need GTK+ ?". From the listed options answer: "Install GTK+" and click "Ok". 
+# Once installed, these will not be downloaded again.
+
+#Restart R before trying to look up the library. Also, for some reason it works better in the R console than in Rmarkdown...not sure if this bug has been fixed yet
+
+###
+
+##Set up screening file ####
+
+#USE PROJECT
+# set where you'd like your screening results stored
+#setwd("/Users/kayleearnold/Documents/*U of Georgia/Courses/Spring 2019/8030 - Meta Analyses/Group_efforts")
+
+# read in exported bibliographic data from web of knowledge called "savedrec.csv"
+searchresults <- read.csv(file="savedrec.csv", header= T, as.is= T)
+
+# File should include columns for "AUTHORS"   "YEAR"      "TITLE"     "JOURNAL"   "VOLUME"    
+  #"LPAGES"    "UPAGES"    "DOI"       "ABSTRACT" 
+
+# Update column headers and drop unpopulated columns 
+  # default export from WoS database has abbreviated column names
+
+#subset to columns of interest based on default naming from WoS; double check
+searchresults2 <-searchresults[,c("PT", "AU", "TI", "SO", "VL", "IS", "BP", "EP", "DI", "PD", "PY", "AB","TC", "Z9")]
+
+#rename columns (optional): 
+names(searchresults2) <- c("pub.type", "authors", "title", "pub.name","vol", "issue", "b.page", "e.page", "doi", "pub.date", "pub.year", "abstract","wos.citations","alldb.citations")
+
+
+## Delegate papers among reviewers for screening ####
+
+# prepare to distribute among reviewers
+theRefs <- effort_initialize(searchresults2)
+  # adds Study_ID,  Reviewer, and Include columns
+
+# create list of reviewers
+theTeam1 <- c("Reni", "Kaylee", "Caitlin", "Rachel")
+
+# distribute screening effort among reviewers
+theRefs_unscreened <- effort_distribute(theRefs, reviewers = theTeam1, save_split = TRUE)
+
+  # save_split saves to separate files for each reviewer
+  # Note: you can unevenly distribute effort by adding commands `effort = c(60, 60)) for overlap 
+
+
+# display screening tasks
+theRefs_unscreened[c("STUDY_ID", "REVIEWERS")]
+
+
+```
+
+
+
+```{r merge screened papers together}
+
+# after all reviewers complete screening their subset of papers, you can merge their screening files back together again
+
+## Merge completed screening files back together again ####
+theRefs_screened <- effort_merge() # will merge all files starting with "effort_" in directory
+
+## get paper pdfs ####
+  # get pdfs for papers that pass the preliminary screening step
+
+# First subset dataframe to only have papers that passed the first screening step
+theRefs.included <- theRefs_screened[which(theRefs_screened$INCLUDE=="YES"),]
+
+
+# then try to get the pdfs for those papers
+collectionOutcomes <- PDFs_collect(theRefs.included, DOIcolumn = "doi", FileNamecolumn = "STUDY_ID", directory = "./pdf")
+
+# write csv
+write.csv(collectionOutcomes, "collection_outcomes.csv")
+
+
+# assign effort among team members
+hand_outpdfs<- effort_distribute("collection_outcomes.csv", reviewers = theTeam1, save_split = TRUE, directory ="./pdf") 
+
+
+
+```

@@ -1,0 +1,31 @@
+---
+title: "Screening"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(metagear)
+
+```
+
+## Screening code
+
+This file should be used by all reviewers to screen the publications allocated to them in the file named effort_[ReviewerName].csv
+
+Be sure to modify code to your name. It is important that you use the same exact name in the effort_[ReviewerName].csv
+
+```{r screening code}
+## Using GUI to screen papers  ####
+  
+# start screening papers in each subset (example for reviewer named Amy)
+
+# initializes GUI for screening
+abstract_screener( "effort_YOURNAME.csv", aReviewer = "YOURNAME", abstractColumnName = "abstract", titleColumnName = "title")
+  # GUI should pop up, with a paper title and abstract 
+  # Click Yes if paper looks relevant, No if not, and Maybe if you will need to look at the paper to determine. 
+  # a new paper should show up after you click the yes, no, or maybe button
+  # periodically click Save to update your effort_name.csv file with the results
+  # exit out when done. Can be completed in multiple sessions.
+
+```
